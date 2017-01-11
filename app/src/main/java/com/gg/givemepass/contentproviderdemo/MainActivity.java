@@ -9,6 +9,7 @@ import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
+import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.view.LayoutInflater;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -49,12 +51,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initView() {
-
         toolbar = (Toolbar) findViewById(R.id.toolbar);
         toolbar.setTitle("");
         toolbarToggle = (ToggleButton) findViewById(R.id.toolbar_toggle);
         ((TextView) toolbar.findViewById(R.id.toolbar_text)).setText(ALL_ALBUM_TAG);
-
         toolbar.findViewById(R.id.toolbar_layout).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -76,8 +76,34 @@ public class MainActivity extends AppCompatActivity {
         recyclerView = (RecyclerView) findViewById(R.id.recyclerview);
         GridLayoutManager layoutManager = new GridLayoutManager(this, 3);
         recyclerView.setLayoutManager(layoutManager);
+
         adapter = new RecyclerViewAdapter();
         recyclerView.setAdapter(adapter);
+        service.submit(new Runnable() {
+            @Override
+            public void run() {
+                getAlbumData();
+                if(contentMap.size() > 0){
+                    List<FolderData> list = contentMap.get(ALL_ALBUM_TAG);
+                    adapter.setData(list);
+
+                    Set<String> keys = contentMap.keySet();
+                    List<String> keyList = new ArrayList<>();
+                    for(String s : keys){
+                        keyList.add(s);
+                    }
+                    popupWindowAdapter.setData(keyList);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            adapter.notifyDataSetChanged();
+                            popupWindowAdapter.notifyDataSetChanged();
+                        }
+                    });
+
+                }
+            }
+        });
     }
 
     private void initPopupWindow() {
@@ -85,11 +111,15 @@ public class MainActivity extends AppCompatActivity {
         View view = inflater.inflate(R.layout.album_menu_list, null);
         popupWindow = new PopupWindow(view);
         popupWindow.setWidth(500);
-        popupWindow.setHeight(ViewGroup.LayoutParams.MATCH_PARENT);
+        popupWindow.setHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
         RecyclerView recyclerView = (RecyclerView) view.findViewById(R.id.album_list_popup);
+        final LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        layoutManager.setOrientation(LinearLayoutManager.VERTICAL);
+        recyclerView.setLayoutManager(layoutManager);
         popupWindowAdapter = new PopupWindowAdapter();
         recyclerView.setAdapter(popupWindowAdapter);
     }
+
     public class PopupWindowAdapter extends RecyclerView.Adapter<PopupWindowAdapter.ViewHolder> {
         private List<String> mData;
 
@@ -133,18 +163,6 @@ public class MainActivity extends AppCompatActivity {
                 MY_PERMISSIONS_REQUEST_READ_CONTACTS);
         contentMap = new HashMap<>();
         service = Executors.newSingleThreadExecutor();
-        service.submit(new Runnable() {
-            @Override
-            public void run() {
-                getAlbumData();
-                if(contentMap.size() > 0){
-                    List<FolderData> list = contentMap.get(ALL_ALBUM_TAG);
-                    adapter.setData(list);
-                    adapter.notifyDataSetChanged();
-                }
-
-            }
-        });
     }
 
     @Override
@@ -180,21 +198,20 @@ public class MainActivity extends AppCompatActivity {
                     FolderData data = new FolderData();
                     data.setPath(picPath);
                     data.setBucketName(bucket);
-                    List<FolderData> mFolderDataList = contentMap.get(bucket);
-
-                    //不同資料夾
-                    if(!contentMap.containsKey(bucket)){
+                    List<FolderData> mFolderDataList;
+                    //有這個資料夾
+                    if(contentMap.containsKey(bucket)){
+                        mFolderDataList = contentMap.get(bucket);
+                        if(!mFolderDataList.contains(data)) {
+                            mFolderDataList.add(data);
+                            allDatas.add(data);
+                        }
+                    } else{//沒有這個資料夾
                         mFolderDataList = new ArrayList<>();
                         mFolderDataList.add(data);
-                        contentMap.put(bucket, mFolderDataList);
-                    } else{ //同一資料夾
-                        mFolderDataList.add(data);
+                        allDatas.add(data);
                     }
-                    for(FolderData f : mFolderDataList) {
-                        if(!allDatas.contains(f)) {
-                            allDatas.add(f);
-                        }
-                    }
+                    contentMap.put(bucket, mFolderDataList);
                 }
                 contentMap.put(ALL_ALBUM_TAG, allDatas);
             }

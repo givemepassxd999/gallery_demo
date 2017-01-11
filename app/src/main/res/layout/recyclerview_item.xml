@@ -6,6 +6,6 @@
         android:layout_centerInParent="true"
         android:id="@+id/recyclerview_item_img"
         android:scaleType="centerCrop"
-        android:layout_width="100dp"
-        android:layout_height="100dp" />
+        android:layout_width="@dimen/PXP241_PX"
+        android:layout_height="@dimen/PXP241_PX" />
 </RelativeLayout>
