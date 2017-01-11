@@ -1,6 +1,7 @@
 package com.gg.givemepass.contentproviderdemo;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.os.Bundle;
@@ -13,7 +14,11 @@ import android.support.v7.widget.Toolbar;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
+import android.widget.PopupWindow;
+import android.widget.TextView;
+import android.widget.ToggleButton;
 
 import com.bumptech.glide.Glide;
 
@@ -21,7 +26,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -32,6 +36,10 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private RecyclerViewAdapter adapter;
     private Toolbar toolbar;
+    private static final String ALL_ALBUM_TAG = "ALL PHOTO";
+    private ToggleButton toolbarToggle;
+    private PopupWindow popupWindow;
+    private PopupWindowAdapter popupWindowAdapter;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -41,9 +49,30 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initView() {
+
         toolbar = (Toolbar) findViewById(R.id.toolbar);
         toolbar.setTitle("");
+        toolbarToggle = (ToggleButton) findViewById(R.id.toolbar_toggle);
+        ((TextView) toolbar.findViewById(R.id.toolbar_text)).setText(ALL_ALBUM_TAG);
+
+        toolbar.findViewById(R.id.toolbar_layout).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                toolbarToggle.toggle();
+            }
+        });
+        toolbarToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(isChecked) {
+                    popupWindow.showAsDropDown(toolbar.findViewById(R.id.toolbar_layout));
+                } else{
+                    popupWindow.dismiss();
+                }
+            }
+        });
         setSupportActionBar(toolbar);
+        initPopupWindow();
         recyclerView = (RecyclerView) findViewById(R.id.recyclerview);
         GridLayoutManager layoutManager = new GridLayoutManager(this, 3);
         recyclerView.setLayoutManager(layoutManager);
@@ -51,6 +80,53 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setAdapter(adapter);
     }
 
+    private void initPopupWindow() {
+        LayoutInflater inflater = (LayoutInflater)getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        View view = inflater.inflate(R.layout.album_menu_list, null);
+        popupWindow = new PopupWindow(view);
+        popupWindow.setWidth(500);
+        popupWindow.setHeight(ViewGroup.LayoutParams.MATCH_PARENT);
+        RecyclerView recyclerView = (RecyclerView) view.findViewById(R.id.album_list_popup);
+        popupWindowAdapter = new PopupWindowAdapter();
+        recyclerView.setAdapter(popupWindowAdapter);
+    }
+    public class PopupWindowAdapter extends RecyclerView.Adapter<PopupWindowAdapter.ViewHolder> {
+        private List<String> mData;
+
+        public class ViewHolder extends RecyclerView.ViewHolder {
+            public TextView textView;
+            public ViewHolder(View v) {
+                super(v);
+                textView = (TextView) v.findViewById(R.id.popup_window_item_text);
+            }
+        }
+
+        public PopupWindowAdapter() {
+            mData = new ArrayList<>();
+        }
+
+        public void setData(List<String> data){
+            mData = data;
+        }
+
+        @Override
+        public PopupWindowAdapter.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.popupwindow_list_item, parent, false);
+            ViewHolder vh = new ViewHolder(v);
+            return vh;
+        }
+
+        @Override
+        public void onBindViewHolder(ViewHolder holder, final int position) {
+            holder.textView.setText(mData.get(position));
+        }
+
+        @Override
+        public int getItemCount() {
+            return mData.size();
+        }
+    }
     private void initData() {
         ActivityCompat.requestPermissions(MainActivity.this,
                 new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
@@ -62,17 +138,9 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 getAlbumData();
                 if(contentMap.size() > 0){
-                    Set<String> set = contentMap.keySet();
-                    int i = 0;
-                    for(String key : set) {
-                        if(i == 0) {
-                            List<FolderData> list = contentMap.get(key);
-                            adapter.setData(list);
-                            adapter.notifyDataSetChanged();
-                            break;
-                        }
-                        i++;
-                    }
+                    List<FolderData> list = contentMap.get(ALL_ALBUM_TAG);
+                    adapter.setData(list);
+                    adapter.notifyDataSetChanged();
                 }
 
             }
@@ -102,18 +170,17 @@ public class MainActivity extends AppCompatActivity {
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI, columns,
                     null, null, orderBy + " DESC");
             if (imagecursor != null && imagecursor.getCount() > 0) {
-
+                List<FolderData> allDatas = new ArrayList<>();
                 while (imagecursor.moveToNext()) {
                     int dataColumnIndex = imagecursor.getColumnIndex(MediaStore.Images.Media.DATA);
                     int bucketColumn = imagecursor.getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME);
                     String picPath = imagecursor.getString(dataColumnIndex);
                     String bucket = imagecursor.getString(bucketColumn);
 
-                    List<FolderData> mFolderDataList;
                     FolderData data = new FolderData();
                     data.setPath(picPath);
                     data.setBucketName(bucket);
-                    mFolderDataList = contentMap.get(bucket);
+                    List<FolderData> mFolderDataList = contentMap.get(bucket);
 
                     //不同資料夾
                     if(!contentMap.containsKey(bucket)){
@@ -123,7 +190,13 @@ public class MainActivity extends AppCompatActivity {
                     } else{ //同一資料夾
                         mFolderDataList.add(data);
                     }
+                    for(FolderData f : mFolderDataList) {
+                        if(!allDatas.contains(f)) {
+                            allDatas.add(f);
+                        }
+                    }
                 }
+                contentMap.put(ALL_ALBUM_TAG, allDatas);
             }
         } catch (Exception e) {
             e.printStackTrace();

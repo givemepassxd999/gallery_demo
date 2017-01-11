@@ -28,4 +28,10 @@ public class FolderData {
     public void setPath(String path) {
         this.path = path;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        FolderData f = (FolderData)obj;
+        return this.path.equals(f.getPath());
+    }
 }

@@ -6,12 +6,33 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
     <android.support.v7.widget.Toolbar
-
+        android:background="?attr/colorPrimary"
         android:id="@+id/toolbar"
         android:minHeight="?actionBarSize"
         android:layout_width="match_parent"
         android:layout_height="?actionBarSize" >
-
+        <RelativeLayout
+            android:id="@+id/toolbar_layout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <TextView
+                android:id="@+id/toolbar_text"
+                android:textColor="#ffffff"
+                android:textSize="16sp"
+                android:gravity="center_vertical"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent" />
+            <ToggleButton
+                android:id="@+id/toolbar_toggle"
+                android:textOff=""
+                android:textOn=""
+                android:layout_marginLeft="5dp"
+                android:layout_centerVertical="true"
+                android:background="@drawable/toggle_selector"
+                android:layout_toRightOf="@id/toolbar_text"
+                android:layout_width="30dp"
+                android:layout_height="30dp" />
+        </RelativeLayout>
     </android.support.v7.widget.Toolbar>
     <android.support.v7.widget.RecyclerView
         android:layout_below="@id/toolbar"
